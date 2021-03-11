@@ -6,11 +6,6 @@
     class="elevation-1"
   >
     <template v-slot:top>
-      {{"country: " + country[0].label}}
-      {{"Info: " + info}}
-      <country-select v-model="country" :country="country" topCountry="" :countryName="true" />
-      {{"region: "}}
-      <region-select v-model="region" :country="country" :region="region" :countryName="true" :regionName="true" />
         <Map/>
       <v-toolbar
         flat
@@ -118,7 +113,6 @@
                     <v-text-field
                       v-model="editedItem.Dir"
                       label="Calle"
-                      @blur="getCoords"
                     ></v-text-field>
                   </v-col>
                   <v-col
@@ -149,6 +143,7 @@
                     <v-text-field
                       v-model="editedItem.CP"
                       label="CP"
+                      @blur="getInfoPostalCode"
                     ></v-text-field>
                   </v-col>
                   <v-col
@@ -186,10 +181,27 @@
                     sm="6"
                     md="4"
                   >
+                  <v-select
+                    v-model="selectCol"
+                    :hint="`${selectCol.Colonia}`"
+                    :items="Colonias"
+                    item-text="colonia"
+                    item-value="colonia"
+                    label="Colonia"
+                    persistent-hint
+                    return-object
+                    single-line
+                    v-on:change="fillAddress()"
+                  ></v-select>
+                  </v-col>
+                  <v-col
+                    cols="12"
+                    sm="6"
+                    md="4"
+                  >
                     <v-text-field
-                      v-model="editedItem.Dir"
-                      label="Direccion"
-                      @blur="getCoords"
+                      v-model="editedItem.FullDir"
+                      label="FullDireccion"
                     ></v-text-field>
                   </v-col>
                   <v-col
@@ -278,18 +290,16 @@
 
 <script type="text/javascript" src="https://maps.google.com/maps/api/js"></script>
 <script>
-import CountrySelect from '@/components/layouts/country-select.vue'
-import RegionSelect from '@/components/layouts/region-select.vue'
 import Map from './map.vue'
 import axios from 'axios'
 export default {
   components: {
-    Map,
-    CountrySelect,
-    RegionSelect
+    Map
   },
   data: () => ({
     items: [],
+    Colonias: [],
+    selectCol: { Colonia: ''},
     dialog: false,
     dialogDelete: false,
     headers: [
@@ -305,9 +315,8 @@ export default {
       { text: 'ProdQty', value: 'ProdQty' },
       { text: 'Lat', value: 'Lat' },
       { text: 'Lng', value: 'Lng' },
-      { text: 'Dir', value: 'Dir' },
+      { text: 'Dir', value: 'FullDir' },
       { text: 'Checked', value: 'Checked' },
-      { text: 'CP', value: 'CP' },
       { text: 'Actions', value: 'actions', sortable: false }
     ],
     selectedItem: [],
@@ -323,7 +332,17 @@ export default {
       Lng: '',
       Dir: '',
       Checked: '',
-      CP: ''
+      NumExt: '',
+      Numint: '',
+      Pais: '',
+      Ciudad: '',
+      Estado: '',
+      CP: '',
+      Colonia: '',
+      Pais: '',
+      Ciudad: '',
+      Estado: '',
+      FullDir: ''
     },
     defaultItem: {
       Seccion: '',
@@ -335,10 +354,18 @@ export default {
       Lng: '',
       Dir: '',
       Checked: '',
-      CP: ''
-    },
-    country: [{}],
-    region: 'West Lothian (Linlithgowshire)'
+      NumExt: '',
+      Numint: '',
+      Pais: '',
+      Ciudad: '',
+      Estado: '',
+      CP: '',
+      Colonia: '',
+      Pais: '',
+      Ciudad: '',
+      Estado: '',
+      FullDir: ''
+    }
   }),
   computed: {
     formTitle () {
@@ -361,7 +388,7 @@ export default {
       this.Direcciones = [
         {
           Seccion: '0',
-          Dir_FullName: 'Full Name0',
+          Dir_FullName: 'Full Name 0',
           Guia: 'Guia0000',
           OrdenNo: 'OrderNo000',
           ProdQty: '1',
@@ -369,7 +396,12 @@ export default {
           Lng: '',
           Dir: 'Direccion 00',
           Checked: '0',
-          CP: '00000'
+          CP: '00000',
+          Colonia: '',
+          Pais: '',
+          Ciudad: '',
+          Estado: '',
+          FullDir: ''
         },
         {
           Seccion: '1',
@@ -381,10 +413,15 @@ export default {
           Lng: '',
           Dir: 'Direccion 01',
           Checked: '1',
-          CP: '11111'
+          CP: '11111',
+          Colonia: '',
+          Pais: '',
+          Ciudad: '',
+          Estado: '',
+          FullDir: ''
         }
       ]
-      this.LoadSecction()
+      // this.LoadSecction()
     },
     editItem (item) {
       this.selectedItem = null
@@ -493,6 +530,7 @@ export default {
               Lat: response.data[i].Lat,
               Lng: response.data[i].Lng,
               Dir: response.data[i].Dir,
+              FullDir: response.data[i].FullDir,
               Checked: response.data[i].Checked,
               CP: response.data[i].CP
             })
@@ -542,6 +580,7 @@ export default {
               Lat: response.data[i].Lat,
               Lng: response.data[i].Lng,
               Dir: response.data[i].Dir,
+              FullDir: response.data[i].FullDir,
               Checked: response.data[i].Checked,
               CP: response.data[i].CP
             })
@@ -575,7 +614,8 @@ export default {
         Lng: Direcciones.lng,
         Dir: Direcciones.Dir,
         Checked: 0,
-        CP: Direcciones.CP
+        CP: Direcciones.CP,
+        FullDir: response.data[i].FullDir,
       }
       alert(JSON.stringify(UrlVar))
       axiosInstance
@@ -599,7 +639,7 @@ export default {
     },
     getCoords: function () {
       var geocoder = new google.maps.Geocoder ()
-      var address = this.editedItem.Dir // document.getElementById('search').value
+      var address = this.editedItem.FullDir // document.getElementById('search').value
       if(address!=''){
         // Llamamos a la función geodecode pasandole la dirección que hemos introducido en la caja de texto.
         geocoder.geocode({ 'address': address}, function(results, status)
@@ -608,16 +648,72 @@ export default {
           {
             // Mostramos las coordenadas obtenidas en el p con id coordenadas
             // document.getElementById("coordenadas").innerHTML='Coordenadas:   '+results[0].geometry.location.lat()+', '+results[0].geometry.location.lng()
-            localStorage.setItem("lat", results[0].geometry.location.lat().toFixed(4))
-            localStorage.setItem("lng", results[0].geometry.location.lng().toFixed(4))
+            localStorage.setItem("lat", results[0].geometry.location.lat().toFixed(6))
+            localStorage.setItem("lng", results[0].geometry.location.lng().toFixed(6))
+            return 'AAA'
+            // return {'lat': results[0].geometry.location.lat().toFixed(6), 'lng': results[0].geometry.location.lng().toFixed(6)}
             //// Posicionamos el marcador en las coordenadas obtenidas
             //mapa.marker.setPosition(results[0].geometry.location);
             //// Centramos el mapa en las coordenadas obtenidas
             //mapa.map.setCenter(mapa.marker.getPosition());
             //agendaForm.showMapaEventForm();
+          }else{
+            return {'Error': 'ERROR to GETCoords'}
           }
         });
       }
+    },
+    getInfoPostalCode: function () {
+      const cp = this.editedItem.CP
+      const tokenCP = '15663d69-fc5d-4c99-a614-e25cdb691db2' // 'https://api-sepomex.hckdrk.mx/query/info_cp/' + cp +'?token=' + tokenCP
+      const axiosInstance = axios.create({
+        method: 'get',
+        baseURL: 'https://api-sepomex.hckdrk.mx/query/info_cp/'
+      })
+      const UrlVar = ''
+      axiosInstance
+        .get(cp + '?token=' + tokenCP)
+        .then(response => {
+          //this.Colonias = response
+          for (var i in response.data) {
+            // console.log('PAIS::' + response.data[i].response.pais)
+            this.editedItem.Pais = response.data[i].response.pais
+            this.editedItem.Ciudad = response.data[i].response.ciudad
+            this.editedItem.Estado = response.data[i].response.estado
+            this.Colonias.push({
+              colonia: response.data[i].response.asentamiento
+            })
+          }
+        })
+        .catch(e => console.log('ERROR::!!!' + e))
+    },
+    fillAddress: function () {
+      var FullAddress = ''
+      this.editedItem.Colonia = this.selectCol.colonia
+      if (this.editedItem.Numint == ''){
+        FullAddress = this.editedItem.Dir + ', ' +
+        this.editedItem.NumExt + ' ' +
+        this.editedItem.Colonia + ', ' +
+        this.editedItem.CP  + ', ' +
+        this.editedItem.Ciudad + ', ' +
+        this.editedItem.Estado + ', ' +
+        this.editedItem.Pais
+      }else{
+        FullAddress = this.editedItem.Dir + ', ' +
+        this.editedItem.NumExt + ' ' +
+        this.editedItem.Numint + ' ' +
+        this.editedItem.Colonia + ', ' +
+        this.editedItem.CP  + ', ' +
+        this.editedItem.Ciudad + ', ' +
+        this.editedItem.Estado + ', ' +
+        this.editedItem.Pais
+      }
+      this.editedItem.FullDir = FullAddress
+      alert(this.getCoords())
+      const Coords = this.getCoords()
+      alert(Coords)
+      this.editedItem.Lat = Coords.lat
+      this.editedItem.Lng = Coords.lng
     }
   }
 }
